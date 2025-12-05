@@ -60,7 +60,7 @@ jobs:
           ECR_URL="$ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/$ECR_REPO"
 
           # Tag built docker-compose image
-          docker tag yourapp_api:latest $ECR_URL:latest
+          docker tag webapi-awsdeploy-webapi:latest $ECR_URL:latest
 
           # Push to ECR
           docker push $ECR_URL:latest
