@@ -66,6 +66,9 @@ jobs:
            aws ecr get-login-password --region us-east-1 \
            | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com"
 
-          # Push to ECR
            IMAGE_TAG=${{ github.run_number }}
+          # Tag image
+          docker tag webapi-awsdeploy-webapi:latest $ECR_URL:$IMAGE_TAG
+          # Push to ECR
+
           docker push $ECR_URL:$IMAGE_TAG
