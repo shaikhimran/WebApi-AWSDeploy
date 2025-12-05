@@ -1,9 +1,7 @@
-name: .NET Core Build
+name: .NET Build and Push to ECR
 
 on:
   push:
-    branches: [main]
-  pull_request:
     branches: [main]
 
 jobs:
@@ -12,23 +10,57 @@ jobs:
 
     steps:
       # Checkout repository
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # Setup .NET version
+      # Setup .NET SDK
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "8.0.x" # Change if needed (6.0.x / 7.0.x)
+          dotnet-version: "8.0.x"
 
-      # Restore dependencies
-      - name: Restore Packages
+      # Restore and build
+      - name: Restore
         run: dotnet restore
 
-      # Build the project
-      - name: Build Solution
-        run: dotnet build --configuration Release --no-restore
+      - name: Build
+        run: dotnet build -c Release --no-restore
 
-      # Run tests (optional)
-      - name: Run Tests
-        run: dotnet test --no-build --verbosity normal
+      # -----------------------------
+      #       AWS AUTHENTICATION
+      # -----------------------------
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1 # change your region
+
+      # Login to Amazon ECR
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # -----------------------------
+      #      DOCKER COMPOSE BUILD
+      # -----------------------------
+      - name: Docker Compose Build
+        run: docker compose build
+
+      # -----------------------------
+      #   TAG & PUSH TO ECR
+      # -----------------------------
+      - name: Tag & Push Image to ECR
+        run: |
+          ECR_REPO="${{ secrets.ECR_REPOSITORY }}"
+
+          # Get AWS account ID
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+          # ECR URL
+          ECR_URL="$ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/$ECR_REPO"
+
+          # Tag built docker-compose image
+          docker tag yourapp_api:latest $ECR_URL:latest
+
+          # Push to ECR
+          docker push $ECR_URL:latest
