@@ -57,7 +57,7 @@ jobs:
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
           # ECR URL
-          ECR_URL="$ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/$ECR_REPO"
+          ECR_URL="$ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/imranawsapideploy"
 
           # Tag built docker-compose image
           docker tag webapi-awsdeploy-webapi:latest $ECR_URL:latest
