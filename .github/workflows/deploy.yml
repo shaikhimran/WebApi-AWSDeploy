@@ -82,6 +82,6 @@ jobs:
          key: ${{ secrets.EC2_SSH_KEY }}
          script: |
           cd /opt/app
-          export ECR_API_IMAGE=${{ env.ECR_API_IMAGE }}
+          export ECR_API_IMAGE=$ECR_URL:$IMAGE_TAG
           docker-compose pull
           docker-compose up -d
