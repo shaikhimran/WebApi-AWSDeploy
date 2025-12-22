@@ -63,8 +63,8 @@ jobs:
           docker tag webapi-awsdeploy-webapi:latest $ECR_URL:latest
            
            # 🔐 Login to Amazon ECR (Required to avoid 'no basic auth credentials')
-           aws ecr get-login-password --region us-east-1 \
-           | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com"
+           aws ecr get-login-password --region eu-west-2 \
+           | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.eu-west-2.amazonaws.com"
 
            IMAGE_TAG=${{ github.run_number }}
           # Tag image
