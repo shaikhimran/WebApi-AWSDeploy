@@ -8,18 +8,19 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      AWS_REGION: eu-west-2
+      IMAGE_TAG: ${{ github.run_number }}
+
     steps:
-      # Checkout repository
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Setup .NET SDK
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
 
-      # Restore and build
       - name: Restore
         run: dotnet restore
 
@@ -27,61 +28,56 @@ jobs:
         run: dotnet build -c Release --no-restore
 
       # -----------------------------
-      #       AWS AUTHENTICATION
+      # AWS AUTH
       # -----------------------------
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1 # change your region
+          aws-region: ${{ env.AWS_REGION }}
 
-      # Login to Amazon ECR
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
       # -----------------------------
-      #      DOCKER COMPOSE BUILD
+      # Docker Build
       # -----------------------------
       - name: Docker Compose Build
         run: docker compose build
 
       # -----------------------------
-      #   TAG & PUSH TO ECR
+      # Tag & Push
       # -----------------------------
-      - name: Tag & Push Image to ECR
+      - name: Tag & Push Image
         run: |
-          ECR_REPO="${{ secrets.ECR_REPOSITORY }}"
-
-          # Get AWS account ID
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          ECR_REPO="${{ secrets.ECR_REPOSITORY }}"
+          ECR_URL="$ACCOUNT_ID.dkr.ecr.${AWS_REGION}.amazonaws.com/$ECR_REPO"
 
-          # ECR URL
-          ECR_URL="$ACCOUNT_ID.dkr.ecr.eu-west-2.amazonaws.com/imranawsapideploy"
-
-          # Tag built docker-compose image
-          docker tag webapi-awsdeploy-webapi:latest $ECR_URL:latest
-           
-           # 🔐 Login to Amazon ECR (Required to avoid 'no basic auth credentials')
-           aws ecr get-login-password --region eu-west-2 \
-           | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.eu-west-2.amazonaws.com"
-
-           IMAGE_TAG=${{ github.run_number }}
-          # Tag image
           docker tag webapi-awsdeploy-webapi:latest $ECR_URL:$IMAGE_TAG
-          # Push to ECR
-
           docker push $ECR_URL:$IMAGE_TAG
 
-
+      # -----------------------------
+      # Deploy to EC2
+      # -----------------------------
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-         host: ${{ secrets.EC2_HOST }}
-         username: ${{ secrets.EC2_USER }}
-         key: ${{ secrets.EC2_SSH_KEY }}
-         script: |
-          cd /opt/app
-          export ECR_API_IMAGE=$ECR_URL:$IMAGE_TAG
-          docker-compose pull
-          docker-compose up -d
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+            ECR_REPO=${{ secrets.ECR_REPOSITORY }}
+            AWS_REGION=eu-west-2
+            IMAGE_TAG=${{ github.run_number }}
+            ECR_URL="$ACCOUNT_ID.dkr.ecr.${AWS_REGION}.amazonaws.com/$ECR_REPO"
+
+            aws ecr get-login-password --region $AWS_REGION | \
+              docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+            cd /opt/app
+            export ECR_API_IMAGE=$ECR_URL:$IMAGE_TAG
+            docker compose pull
+            docker compose up -d
