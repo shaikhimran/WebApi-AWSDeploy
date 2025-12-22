@@ -72,3 +72,16 @@ jobs:
           # Push to ECR
 
           docker push $ECR_URL:$IMAGE_TAG
+
+
+      - name: Deploy on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+         host: ${{ secrets.EC2_HOST }}
+         username: ${{ secrets.EC2_USER }}
+         key: ${{ secrets.EC2_SSH_KEY }}
+         script: |
+          cd /opt/app
+          export ECR_API_IMAGE=${{ env.ECR_API_IMAGE }}
+          docker-compose pull
+          docker-compose up -d
